@@ -1,9 +1,8 @@
 #!/bin/sh
 
-[[ -z "$DB_NAME" ]] && echo "DB_NAME required" && exit 1;
-[[ -z "$BUCKET" ]] && echo "BUCKET required" && exit 1;
-[[ -z "$MONGODB_USER" ]] && echo "MONGODB_USER required" && exit 1;
-[[ -z "$MONGODB_PASS" ]] && echo "MONGODB_PASS required" && exit 1;
+[[ -z "$BUCKET_NAME" ]] && echo "BUCKET_NAME required" && exit 1;
+[[ -z "$MONGODB_URI" ]] && echo "MONGODB_URI required" && exit 1;
+[[ -z "$OUTPUT_NAME" ]] && echo "OUTPUT_NAME required" && exit 1;
 
 DATE=$(date +%Y%m%d_%H%M)
 
@@ -12,17 +11,15 @@ if [[ "$MONGODB_HOST" == "" ]]; then
 fi
 
 # Execute a database lookup
-HAS_COLLECTIONS=$(mongo -u $MONGODB_USER -p $MONGODB_PASS --host $MONGODB_HOST $DB_NAME <<< "db.getCollectionNames().length > 0" |& grep "^true$")
+HAS_COLLECTIONS=$(mongo -uri $MONGO_URI <<< "db.getCollectionNames().length > 0" |& grep "^true$")
 if [[ "$HAS_COLLECTIONS" != "true" ]]
 then
     echo "Database has no collections or we cannot connect"
     exit 1
 fi
 
-OUTPUT_FILE="/tmp/mongodb-$DB_NAME-dump_$DATE.tar.bz2"
-DUMP_DIR=$(mktemp -d)
+OUTPUT_FILE="/tmp/$OUTPUT_NAME-$DATE.gz"
+mongodump --uri $MONGODB_URI --archive=$OUTPUT_FILE --gzip -v
 
-mongodump -u $MONGODB_USER -p $MONGODB_PASS --host $MONGODB_HOST --db $DB_NAME -o $DUMP_DIR
-tar cjf $OUTPUT_FILE $DUMP_DIR
-
-gsutil -m -h "Cache-Control:no-cache" cp -r "$OUTPUT_FILE" "gs://$BUCKET/"
+gcloud auth activate-service-account --key-file /secrets/gcp-key.json
+gsutil -m -h "Cache-Control:no-cache" cp -r "$OUTPUT_FILE" "gs://$BUCKET_NAME/"

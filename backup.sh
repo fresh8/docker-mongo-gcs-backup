@@ -6,18 +6,6 @@
 
 DATE=$(date +%Y%m%d_%H%M)
 
-if [[ "$MONGODB_HOST" == "" ]]; then
-    MONGODB_HOST=localhost
-fi
-
-# Execute a database lookup
-HAS_COLLECTIONS=$(mongo -uri $MONGO_URI <<< "db.getCollectionNames().length > 0" |& grep "^true$")
-if [[ "$HAS_COLLECTIONS" != "true" ]]
-then
-    echo "Database has no collections or we cannot connect"
-    exit 1
-fi
-
 OUTPUT_FILE="/tmp/$OUTPUT_NAME-$DATE.gz"
 mongodump --uri $MONGODB_URI --archive=$OUTPUT_FILE --gzip -v
 
